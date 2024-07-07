@@ -14,11 +14,11 @@ public class Main {
         System.out.println("Введіть число");
         n = scanner.nextInt();
         Main main = new Main();
-        main.setN();
+        main.Start();
         //timeAfterLaunch();
 
     }
-    public void setN(){
+    public void Start()){
         Thread threadA = new Thread(new Fizz());
         Thread threadB = new Thread(new Buzz());
         Thread threadC = new Thread(new FizzBuzz());
