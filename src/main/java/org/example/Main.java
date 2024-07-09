@@ -1,125 +1,107 @@
 package org.example;
 
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.LinkedList;
+import java.util.Queue;
+import java.util.Scanner;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 
 public class Main {
-
     public static int n;
-    private final Object obj = new Object();
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition condition = lock.newCondition();
     public final Queue<String> queue = new LinkedList<>();
+    private int currentNumber = 1;
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
+        System.out.println("Введіть N: ");
         n = scanner.nextInt();
         Main main = new Main();
-        main.Start();
-        //timeAfterLaunch();
-
+        main.start();
+        TimeCounter timeCounter = new TimeCounter();
+      //15  timeCounter.timeAfterLaunch();
     }
-    public void Start(){
-        Thread threadA = new Thread(() -> {
-            for (int i = 1; i <= n; i++) {
-            synchronized (obj) {
-                if (fizz(i)) {
-                    queue.add("Fizz");
-                }
-               // System.out.println("queue = " + queue);
-                obj.notifyAll();
-                try {
-                    obj.wait();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-            }
-        });
-        Thread threadB = new Thread(() -> {
-            for (int i = 1; i <= n; i++) {
-                synchronized (obj) {
-                    if (buzz(i)) {
-                        queue.add("Buzz");
-                    }
-                  //  System.out.println("queue = " + queue);
-                    obj.notifyAll();
-                    try {
-                        obj.wait();
-                    }
-                    catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            }
-        });
-        Thread threadC = new Thread(() ->{
-            for (int i = 1; i <= n; i++) {
-                synchronized (obj) {
-                    if (fizzBuzz(i)) {
-                        queue.add("fizzbuzz");
-                    }
-                  //  System.out.println("queue = " + queue);
-                    obj.notifyAll();
-                    try {
-                        obj.wait();
-                    }
-                    catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            }
-        });
-        Thread threadD = new Thread(() ->{
-            for (int i = 1; i <= n; i++) {
-                number(i);
-            }
-        });
+
+    public void start() {
+        Thread threadA = createThread("A", this::fizz);
+        Thread threadB = createThread("B", this::buzz);
+        Thread threadC = createThread("C", this::fizzbuzz);
+        Thread threadD = createThread("D", this::number);
+
         threadA.start();
-       threadD.start();
         threadB.start();
         threadC.start();
-    }
-    public boolean fizz(int i){
-        return i % 3 == 0 && i % 5 != 0;
-    }
-    public boolean buzz(int i){
-        return i % 5 == 0 && i % 3 != 0;
-    }
-    public boolean fizzBuzz(int i){
-        return i % 5 == 0 && i % 3 == 0;
-    }
-    public void number(int i){
-        synchronized (obj) {
-            if (i % 3 != 0 && i % 5 != 0) {
-                System.out.println(i);
-            } else {
-                while (queue.isEmpty()) {
-                    try {
-                        obj.wait();
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
+        threadD.start();
 
-                }
-                System.out.println(queue.poll());
-                obj.notifyAll();
-            }
-
+        try {
+            threadA.join();
+            threadB.join();
+            threadC.join();
+            threadD.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
         }
     }
-    public static void timeAfterLaunch(){
 
-        ScheduledExecutorService service = Executors.newScheduledThreadPool(2);
-        service.scheduleAtFixedRate(() ->
-                        System.out.println("Часу пройшло с момента запуску: " +  System.nanoTime() /  1_000_000_000),
-                0,
-                1,
-                TimeUnit.SECONDS
-        );
-        service.scheduleAtFixedRate(() ->
-                        System.out.println("Пройшло 5 секунд"),
-                0,
-                5,
-                TimeUnit.SECONDS
-        );
+    private Thread createThread(String name, Runnable task) {
+        return new Thread(task, name);
+    }
+
+    private void fizz() {
+        processNumber(i -> i % 3 == 0 && i % 5 != 0, "Fizz");
+    }
+
+    private void buzz() {
+        processNumber(i -> i % 5 == 0 && i % 3 != 0, "Buzz");
+    }
+
+    private void fizzbuzz() {
+        processNumber(i -> i % 3 == 0 && i % 5 == 0, "FizzBuzz");
+    }
+
+    private void number() {
+        while (currentNumber <= n) {
+            lock.lock();
+            try {
+                while (currentNumber <= n &&
+                        ((currentNumber % 3 == 0 || currentNumber % 5 == 0) && queue.isEmpty())) {
+                    condition.await();
+                }
+                if (currentNumber <= n) {
+                    String output = queue.poll();
+                    if (output == null) {
+                        output = String.valueOf(currentNumber);
+                    }
+                    System.out.print(output);
+                    if (currentNumber < n) System.out.print(", ");
+                    currentNumber++;
+                    condition.signalAll();
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } finally {
+                lock.unlock();
+            }
+        }
+    }
+    private void processNumber(Predicate<Integer> predicate, String output) {
+        while (currentNumber <= n) {
+            lock.lock();
+            try {
+                if (currentNumber <= n && predicate.test(currentNumber)) {
+                    queue.offer(output);
+                    condition.signalAll();
+                    condition.await();
+                } else {
+                    condition.await();
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } finally {
+                lock.unlock();
+            }
+        }
     }
 }
