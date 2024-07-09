@@ -11,96 +11,99 @@ public class Main {
 
     public static void main(String[] args) throws InterruptedException {
         Scanner scanner = new Scanner(System.in);
-        System.out.println("Введіть число");
         n = scanner.nextInt();
         Main main = new Main();
         main.Start();
         //timeAfterLaunch();
 
     }
-    public void Start()){
-        Thread threadA = new Thread(new Fizz());
-        Thread threadB = new Thread(new Buzz());
-        Thread threadC = new Thread(new FizzBuzz());
-        Thread threadD = new Thread(new Number());
-        threadD.start();
-        threadC.start();
-        threadA.start();
-        threadB.start();
-    }
-    public class Fizz implements Runnable {
-        public void run() {
+    public void Start(){
+        Thread threadA = new Thread(() -> {
+            for (int i = 1; i <= n; i++) {
+            synchronized (obj) {
+                if (fizz(i)) {
+                    queue.add("Fizz");
+                }
+               // System.out.println("queue = " + queue);
+                obj.notifyAll();
+                try {
+                    obj.wait();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+            }
+        });
+        Thread threadB = new Thread(() -> {
             for (int i = 1; i <= n; i++) {
                 synchronized (obj) {
-                    if (i % 3 == 0 && i % 5 != 0) {
-                        queue.add("Fizz");
+                    if (buzz(i)) {
+                        queue.add("Buzz");
                     }
+                  //  System.out.println("queue = " + queue);
                     obj.notifyAll();
+                    try {
+                        obj.wait();
+                    }
+                    catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        });
+        Thread threadC = new Thread(() ->{
+            for (int i = 1; i <= n; i++) {
+                synchronized (obj) {
+                    if (fizzBuzz(i)) {
+                        queue.add("fizzbuzz");
+                    }
+                  //  System.out.println("queue = " + queue);
+                    obj.notifyAll();
+                    try {
+                        obj.wait();
+                    }
+                    catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }
+        });
+        Thread threadD = new Thread(() ->{
+            for (int i = 1; i <= n; i++) {
+                number(i);
+            }
+        });
+        threadA.start();
+       threadD.start();
+        threadB.start();
+        threadC.start();
+    }
+    public boolean fizz(int i){
+        return i % 3 == 0 && i % 5 != 0;
+    }
+    public boolean buzz(int i){
+        return i % 5 == 0 && i % 3 != 0;
+    }
+    public boolean fizzBuzz(int i){
+        return i % 5 == 0 && i % 3 == 0;
+    }
+    public void number(int i){
+        synchronized (obj) {
+            if (i % 3 != 0 && i % 5 != 0) {
+                System.out.println(i);
+            } else {
+                while (queue.isEmpty()) {
                     try {
                         obj.wait();
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
-                }
-            }
-        }
-    }
-    public class Buzz implements Runnable{
-        public void run() {
-            for (int i = 1; i <= n; i++) {
-                synchronized (obj) {
-                    if (i % 5 == 0 && i % 3 != 0) {
-                        queue.add("Buzz");
-                    }
-                    obj.notifyAll();
-                    try {
-                        obj.wait();
-                    }
-                    catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-                }
-            }
-        }
-    }
-    public class FizzBuzz implements Runnable{
-        public void run() {
-            for (int i = 1; i <= n; i++) {
-                synchronized (obj) {
-                    if (i % 5 == 0 && i % 3 == 0) {
-                        queue.add("FizzBuzz");
-                    }
-                    obj.notifyAll();
-                    try {
-                        obj.wait();
-                    }
-                    catch (InterruptedException e) {
-                        throw new RuntimeException(e);
 
-                    }
                 }
+                System.out.println(queue.poll());
+                obj.notifyAll();
             }
-        }
-    }
-    public class Number implements Runnable{
-        public void run() {
-            for (int i = 1; i <= n; i++) {
-                synchronized (obj) {
-                    if (i % 3 != 0 && i % 5 != 0) {
-                        System.out.println(i);
-                    } else {
-                        while (queue.isEmpty()) {
-                            try {
-                                obj.wait();
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException(e);
-                            }
-                        }
-                        System.out.println(queue.poll());
-                    }
-                    obj.notifyAll();
-                }
-            }
+
         }
     }
     public static void timeAfterLaunch(){
