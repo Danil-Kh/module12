@@ -16,6 +16,6 @@ public class TimeCounter {
 
         service.scheduleAtFixedRate(() ->
                         System.out.println("Пройшло 5 секунд"),
-                0, 5, TimeUnit.SECONDS);
+                5, 5, TimeUnit.SECONDS);
     }
 }
